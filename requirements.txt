@@ -1,1 +1,6 @@
-
+pandas
+openpyxl
+matplotlib
+seaborn
+jupyter
+ipykernel
