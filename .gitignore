@@ -1,19 +1,30 @@
-# Entorno virtual
-.venv/
+# ---------- Entorno virtual ----------
 venv/
+.venv/
 env/
 
-# Archivos temporales de Python
+# ---------- Archivos temporales de Python ----------
 __pycache__/
-*.py[cod]
+*.pyc
+*.pyo
 
-# Archivos temporales de Jupyter
+# ---------- Jupyter ----------
 .ipynb_checkpoints/
 
-# Configuración local
-.env
+# ---------- Editores y sistema operativo ----------
 .vscode/
-
-# Archivos del sistema
+.idea/
 .DS_Store
 Thumbs.db
+*.joblib
+
+# ---------- Secretos (NUNCA subir claves a GitHub) ----------
+.env
+
+# ---------- Archivos de pruebas / cobertura ----------
+.pytest_cache/
+.coverage
+coverage.xml
+
+# ---------- Excel original (ya lo convertimos a Base_de_datos.csv) ----------
+~$*.xlsx

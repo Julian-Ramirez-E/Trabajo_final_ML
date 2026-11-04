@@ -1,6 +1,29 @@
+# --- Ciencia de datos ---
 pandas
+numpy
+scipy
 openpyxl
 matplotlib
 seaborn
-jupyter
+scikit-learn
+joblib
+plotly
+streamlit
+# --- Notebooks ---
 ipykernel
+jupyter
+
+# --- Monitoreo (Streamlit) ---
+streamlit
+plotly
+
+# --- Despliegue (API) ---
+fastapi
+uvicorn
+pydantic
+python-multipart
+
+# --- Pruebas (SonarCloud / cobertura) ---
+pytest
+pytest-cov
+httpx
