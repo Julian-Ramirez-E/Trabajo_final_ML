@@ -17,14 +17,13 @@ asi todos usan EXACTAMENTE las mismas reglas de limpieza.
 # 1. IMPORTAR LIBRERIAS
 # ---------------------------------------------------------------
 import os
-
 import numpy as np
 import pandas as pd
-from sklearn.compose import ColumnTransformer
-from sklearn.impute import SimpleImputer
 from sklearn.model_selection import train_test_split
+from sklearn.compose import ColumnTransformer
 from sklearn.pipeline import Pipeline
-from sklearn.preprocessing import OneHotEncoder, StandardScaler
+from sklearn.impute import SimpleImputer
+from sklearn.preprocessing import StandardScaler, OneHotEncoder
 
 # ---------------------------------------------------------------
 # 2. CONFIGURACION (listas de columnas segun lo decidido en el EDA)
@@ -38,30 +37,21 @@ OBJETIVO = "Pago_atiempo"
 
 # Columnas eliminadas en el EDA (y la fecha, que se usa solo para monitoreo)
 COLUMNAS_ELIMINAR = [
-    "puntaje",  # fuga de datos
-    "tipo_credito",  # irrelevante
-    "salario_cliente",  # irrelevante
+    "puntaje",                # fuga de datos
+    "tipo_credito",           # irrelevante
+    "salario_cliente",        # irrelevante
     "cant_creditosvigentes",  # irrelevante
-    "saldo_mora_codeudor",  # irrelevante
-    "cuota_pactada",  # redundante con capital_prestado
-    "fecha_prestamo",  # no es predictor (se usa en el monitoreo)
+    "saldo_mora_codeudor",    # irrelevante
+    "cuota_pactada",          # redundante con capital_prestado
+    "fecha_prestamo",         # no es predictor (se usa en el monitoreo)
 ]
 
 # Columnas que usa el modelo
 NUMERICAS = [
-    "capital_prestado",
-    "plazo_meses",
-    "edad_cliente",
-    "total_otros_prestamos",
-    "puntaje_datacredito",
-    "huella_consulta",
-    "saldo_mora",
-    "saldo_total",
-    "saldo_principal",
-    "creditos_sectorFinanciero",
-    "creditos_sectorCooperativo",
-    "creditos_sectorReal",
-    "promedio_ingresos_datacredito",
+    "capital_prestado", "plazo_meses", "edad_cliente", "total_otros_prestamos",
+    "puntaje_datacredito", "huella_consulta", "saldo_mora", "saldo_total",
+    "saldo_principal", "creditos_sectorFinanciero", "creditos_sectorCooperativo",
+    "creditos_sectorReal", "promedio_ingresos_datacredito",
 ]
 CATEGORICAS = ["tipo_laboral", "tendencia_ingresos"]
 
@@ -77,19 +67,7 @@ def limpiar_datos(df):
     df = df.copy()  # trabajamos sobre una copia para no modificar el original
 
     # 3.1 Unificar la forma de escribir los nulos
-    valores_nulos = [
-        "",
-        " ",
-        "NA",
-        "N/A",
-        "na",
-        "null",
-        "NULL",
-        "None",
-        "nan",
-        "NaN",
-        "-",
-    ]
+    valores_nulos = ["", " ", "NA", "N/A", "na", "null", "NULL", "None", "nan", "NaN", "-"]
     df = df.replace(valores_nulos, np.nan)
 
     # 3.2 Si falta alguna columna del modelo (por ejemplo en la API), la creamos vacia
@@ -102,15 +80,14 @@ def limpiar_datos(df):
         df[col] = pd.to_numeric(df[col], errors="coerce")
 
     # 3.4 Reglas de validacion definidas en el EDA
-    df.loc[(df["edad_cliente"] < 18) | (df["edad_cliente"] > 90), "edad_cliente"] = (
-        np.nan
-    )
+    df.loc[(df["edad_cliente"] < 18) | (df["edad_cliente"] > 90), "edad_cliente"] = np.nan
     df.loc[df["puntaje_datacredito"] <= 0, "puntaje_datacredito"] = np.nan
 
     # 3.5 tendencia_ingresos: solo valores validos; lo demas -> "Sin_dato"
-    df.loc[~df["tendencia_ingresos"].isin(TENDENCIAS_VALIDAS), "tendencia_ingresos"] = (
-        "Sin_dato"
-    )
+    # Primero la pasamos a tipo texto: si la columna estaba vacia, pandas la trataria como
+    # numerica y no permitiria escribir texto en ella.
+    df["tendencia_ingresos"] = df["tendencia_ingresos"].astype("object")
+    df.loc[~df["tendencia_ingresos"].isin(TENDENCIAS_VALIDAS), "tendencia_ingresos"] = "Sin_dato"
 
     # 3.6 Quedarnos solo con las columnas del modelo (y el objetivo si existe)
     columnas = NUMERICAS + CATEGORICAS
@@ -126,28 +103,22 @@ def construir_preprocesador():
     """Crea el ColumnTransformer: imputacion + escalado (numericas) y One-Hot (categoricas)."""
 
     # Para las numericas: 1) rellenar nulos con la MEDIA, 2) escalar (media 0, desv. 1)
-    pipeline_numerico = Pipeline(
-        steps=[
-            ("imputador", SimpleImputer(strategy="mean")),
-            ("escalador", StandardScaler()),
-        ]
-    )
+    pipeline_numerico = Pipeline(steps=[
+        ("imputador", SimpleImputer(strategy="mean")),
+        ("escalador", StandardScaler()),
+    ])
 
     # Para las categoricas: convertir cada categoria en columnas 0/1 (One-Hot)
     # handle_unknown="ignore": si llega una categoria nueva, no falla.
-    pipeline_categorico = Pipeline(
-        steps=[
-            ("encoder", OneHotEncoder(handle_unknown="ignore")),
-        ]
-    )
+    pipeline_categorico = Pipeline(steps=[
+        ("encoder", OneHotEncoder(handle_unknown="ignore")),
+    ])
 
     # ColumnTransformer aplica cada pipeline a su grupo de columnas
-    preprocesador = ColumnTransformer(
-        transformers=[
-            ("numericas", pipeline_numerico, NUMERICAS),
-            ("categoricas", pipeline_categorico, CATEGORICAS),
-        ]
-    )
+    preprocesador = ColumnTransformer(transformers=[
+        ("numericas", pipeline_numerico, NUMERICAS),
+        ("categoricas", pipeline_categorico, CATEGORICAS),
+    ])
     return preprocesador
 
 

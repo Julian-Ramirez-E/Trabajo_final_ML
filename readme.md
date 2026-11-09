@@ -23,6 +23,7 @@ mlops_pipeline/
 ├── model_training_evaluation.py  # Entrenamiento, comparación y selección
 ├── model_deploy.py               # API con FastAPI (/predict, /predict_csv)
 ├── model_monitoring.py           # Data drift + tablero Streamlit
+├── test_*.py                     # Pruebas unitarias (pytest)
 ├── modelo_final.joblib           # Mejor modelo entrenado
 ├── comparacion_modelos.png       # Gráficos comparativos
 └── resultados_modelos.csv        # Tabla resumen de modelos
@@ -35,11 +36,26 @@ readme.md
 
 Ramas: `developer` (desarrollo), `certification` y `master`.
 
-## 3. Cómo ejecutarlo
+## 3. Entorno virtual y cómo ejecutarlo
+
+El proyecto usa un **entorno virtual de Python** (`.venv`) para aislar las dependencias. El script `setup.bat` lo crea (si no existe), lo activa e instala `requirements.txt`.
 
 ```bash
-# 1. Crear entorno e instalar dependencias (Windows)
+# Windows: crear el entorno e instalar dependencias (una sola vez)
 setup.bat
+
+# Activar el entorno cada vez que abras una terminal nueva
+.venv\Scripts\activate          # Windows (cmd o PowerShell)
+source .venv/bin/activate         # Linux / macOS (alternativa manual: python -m venv .venv, pip install -r requirements.txt)
+
+# Desactivarlo
+deactivate
+```
+
+En VS Code, selecciona el intérprete `.venv` como *kernel* para ejecutar los notebooks. La carpeta `.venv/` está en `.gitignore` y no se sube al repositorio.
+
+```bash
+# 1. (Entorno ya activo)
 
 # 2. Generar el CSV: ejecutar mlops_pipeline/Cargar_datos.ipynb
 
@@ -89,7 +105,13 @@ Se compararon tres modelos con `class_weight="balanced"`. Métricas sobre el con
 
 ![Comparación de modelos](mlops_pipeline/comparacion_modelos.png)
 
-**Modelo seleccionado: Random Forest**, por mejor desempeño y consistencia (criterio: AUC medio de validación cruzada menos su desviación).
+**Modelo seleccionado: Random Forest.** Justificación según los tres criterios:
+
+- **Desempeño:** tiene el mayor ROC-AUC en prueba (0,699) y el mejor F1 sobre la clase "no paga" (0,175).
+- **Consistencia:** su AUC en validación cruzada es el más alto (0,682) con una desviación baja (±0,014), por lo que su rendimiento no depende de una partición particular de los datos. Gradient Boosting es menos estable (±0,024).
+- **Escalabilidad:** entrena en ~1,2 s con 8.600 registros y es paralelizable (`n_jobs=-1`). La regresión logística es más rápida (0,03 s) pero rinde menos; con este volumen de datos la diferencia de tiempo es irrelevante.
+
+El criterio automático del script es `AUC medio de validación cruzada − desviación`, que premia rendimiento y consistencia a la vez.
 
 **Lectura del resultado:** el rendimiento es moderado (AUC ≈ 0,70) y es lo esperado al excluir la variable con fuga de datos. El modelo detecta cerca de la mitad de los clientes que no pagarán, con baja precisión (~11 %), por lo que sirve como **filtro de riesgo**, no como decisión automática. Posibles mejoras: ajustar el umbral de decisión, optimizar hiperparámetros y crear variables derivadas (relación cuota/ingreso, saldo en mora/saldo total).
 
@@ -151,7 +173,29 @@ curl -X POST http://localhost:8000/predict -H "Content-Type: application/json" \
 
 **Importante:** el modelo se guarda con `joblib`, por lo que la imagen debe usar la **misma versión de scikit-learn** con la que se entrenó. Para garantizarlo, fija las versiones en `requirements.txt` (`pip freeze`).
 
-## 9. Pendiente
+## 9. Pruebas y calidad de código
 
-- Pruebas unitarias y configuración de SonarCloud.
-- (Bonus) `Jenkinsfile`.
+**Pruebas unitarias (`pytest`)**: 70 pruebas en `mlops_pipeline/test_*.py` con una cobertura del 98 %:
+
+| Archivo | Qué valida |
+|---|---|
+| `test_estructura.py` | Que no cambie la estructura de carpetas y archivos (la usa Jenkins) |
+| `test_ft_engineering.py` | Reglas de limpieza, preprocesador y división train/test |
+| `test_model_training.py` | Métricas, `build_model`, el script de entrenamiento y que el modelo guardado cargue |
+| `test_model_monitoring.py` | PSI, KS, Jensen-Shannon, Chi-cuadrado, semáforo, alertas y el tablero de Streamlit |
+| `test_model_deploy.py` | Endpoints de la API, validación de datos (422), errores y predicción por lotes |
+
+```bash
+pytest mlops_pipeline --cov --cov-report=term-missing
+```
+
+**SonarCloud:** `sonar-project.properties` y el workflow `.github/workflows/sonarcloud.yml` analizan calidad (duplicación, complejidad), seguridad, cobertura y estilo en cada push a `developer`, `certification` y `master`.
+
+**Jenkins (bonus):** el `Jenkinsfile` clona el repositorio, instala dependencias, valida la estructura de carpetas, ejecuta las pruebas con cobertura y envía una notificación por correo. Se dispara automáticamente al detectar commits nuevos.
+
+## 10. Evidencias de SonarCloud y Jenkins
+
+> **Pendiente:** agregar aquí las capturas y quitar esta nota.
+
+- **SonarCloud:** captura del panel del proyecto (calidad, seguridad, cobertura y duplicación) y del análisis exitoso en la pestaña *Actions* de GitHub.
+- **Jenkins:** captura de una ejecución exitosa del pipeline (etapas en verde) y de la notificación recibida.

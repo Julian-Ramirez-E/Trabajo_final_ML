@@ -16,7 +16,6 @@ __pycache__/
 .idea/
 .DS_Store
 Thumbs.db
-*.joblib
 
 # ---------- Secretos (NUNCA subir claves a GitHub) ----------
 .env

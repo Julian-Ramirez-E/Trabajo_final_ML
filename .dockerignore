@@ -1,0 +1,24 @@
+# Entorno y control de versiones
+venv/
+.venv/
+.git/
+.gitignore
+.env
+
+# Temporales
+__pycache__/
+**/__pycache__/
+*.pyc
+.ipynb_checkpoints/
+.pytest_cache/
+
+# Archivos que la API no necesita (hacen la imagen mas pesada)
+**/*.ipynb
+**/*.png
+**/*.csv
+Base_de_datos.csv
+BD_creditos*.xlsx
+readme.md
+setup.bat
+Dockerfile
+.dockerignore

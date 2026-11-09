@@ -1,0 +1,39 @@
+# Ejecuta las pruebas y envia calidad, seguridad y cobertura a SonarCloud
+# cada vez que se hace push a una de las 3 ramas o se abre un Pull Request.
+name: SonarCloud
+
+on:
+  push:
+    branches: [developer, certification, master]
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+permissions:
+  contents: read
+
+jobs:
+  analisis:
+    name: Pruebas y analisis
+    runs-on: ubuntu-latest
+    steps:
+      - name: Clonar el repositorio
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0          # historial completo (SonarCloud lo necesita)
+
+      - name: Instalar Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - name: Instalar dependencias
+        run: pip install -r requirements.txt
+
+      - name: Ejecutar pruebas con cobertura
+        run: pytest mlops_pipeline --cov --cov-report=xml
+
+      - name: Analisis de SonarCloud
+        uses: SonarSource/sonarqube-scan-action@v7
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
