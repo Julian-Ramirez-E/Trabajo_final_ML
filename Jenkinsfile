@@ -1,8 +1,36 @@
 // ============================================================
 // Jenkinsfile - Pipeline de validacion del proyecto
-// Este archivo usa "bat" (Windows). Si tu Jenkins esta en Linux/Mac/Docker,
-// cambia cada  bat '...'  por  sh '...'  y usa  .venv/bin/python  en vez de  .venv\Scripts\python
+// Funciona en Linux/Docker (sh) y en Windows (bat): detecta el sistema solo.
 // ============================================================
+
+// ---- Funciones auxiliares (fuera del pipeline) ----
+// Ejecuta un comando con sh (Linux) o bat (Windows)
+def ejecutar(String comando) {
+    if (isUnix()) {
+        sh comando
+    } else {
+        bat comando
+    }
+}
+
+// Ruta del Python del entorno virtual segun el sistema operativo
+def python() {
+    return isUnix() ? '.venv/bin/python' : '.venv\\Scripts\\python'
+}
+
+// Notificacion final: siempre queda escrita en el log; el correo se intenta
+// y, si el SMTP no esta configurado en Jenkins, el pipeline NO falla por eso.
+def notificar(String estado, String detalle) {
+    echo "NOTIFICACION [${estado}] ${env.JOB_NAME} #${env.BUILD_NUMBER}: ${detalle} ${env.BUILD_URL}"
+    try {
+        mail to: 'tu_correo@ejemplo.com',
+             subject: "Pipeline ${estado}: ${env.JOB_NAME} #${env.BUILD_NUMBER}",
+             body: "${detalle}\n${env.BUILD_URL}"
+    } catch (err) {
+        echo "No se pudo enviar el correo (SMTP sin configurar): ${err.message}"
+    }
+}
+
 pipeline {
     agent any
 
@@ -26,38 +54,41 @@ pipeline {
 
         stage('Preparar entorno') {
             steps {
-                bat 'python -m venv .venv'
-                bat '.venv\\Scripts\\python -m pip install --upgrade pip'
-                bat '.venv\\Scripts\\python -m pip install -r requirements.txt'
+                script {
+                    ejecutar(isUnix() ? 'python3 -m venv .venv' : 'python -m venv .venv')
+                    ejecutar("${python()} -m pip install --upgrade pip")
+                    ejecutar("${python()} -m pip install -r requirements.txt")
+                }
             }
         }
 
         stage('Validar estructura de carpetas') {
             steps {
                 // Si alguien cambia o borra un archivo de la estructura, el pipeline falla aqui
-                bat '.venv\\Scripts\\python -m pytest mlops_pipeline/test_estructura.py -q'
+                script {
+                    ejecutar("${python()} -m pytest mlops_pipeline/test_estructura.py -q")
+                }
             }
         }
 
         stage('Pruebas unitarias y cobertura') {
             steps {
-                bat '.venv\\Scripts\\python -m pytest mlops_pipeline --cov --cov-report=xml'
+                script {
+                    ejecutar("${python()} -m pytest mlops_pipeline --cov --cov-report=xml")
+                }
             }
         }
     }
 
-    // NOTIFICACION al terminar (requiere configurar el correo SMTP en Jenkins:
-    // Administrar Jenkins > System > E-mail Notification)
     post {
+        always {
+            archiveArtifacts artifacts: 'coverage.xml', allowEmptyArchive: true
+        }
         success {
-            mail to: 'tu_correo@ejemplo.com',
-                 subject: "Pipeline OK: ${env.JOB_NAME} #${env.BUILD_NUMBER}",
-                 body: "El pipeline termino correctamente.\n${env.BUILD_URL}"
+            script { notificar('OK', 'El pipeline termino correctamente.') }
         }
         failure {
-            mail to: 'tu_correo@ejemplo.com',
-                 subject: "Pipeline FALLO: ${env.JOB_NAME} #${env.BUILD_NUMBER}",
-                 body: "El pipeline fallo. Revisa el detalle aqui:\n${env.BUILD_URL}"
+            script { notificar('FALLO', 'El pipeline fallo. Revisa el detalle en:') }
         }
     }
 }
