@@ -6,7 +6,7 @@
 # ============================================================
 
 # 1. Imagen base: Python liviano
-FROM python:3.11-slim
+FROM python:3.13-slim
 
 # 2. Variables de entorno: evita archivos .pyc y muestra los logs al instante
 ENV PYTHONDONTWRITEBYTECODE=1 \
