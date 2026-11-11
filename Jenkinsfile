@@ -55,6 +55,9 @@ pipeline {
         stage('Preparar entorno') {
             steps {
                 script {
+                    // Borramos el entorno anterior: si una ejecucion previa se interrumpio,
+                    // podria haber quedado danado (ej: ImportError de pluggy).
+                    ejecutar(isUnix() ? 'rm -rf .venv' : 'if exist .venv rmdir /s /q .venv')
                     ejecutar(isUnix() ? 'python3 -m venv .venv' : 'python -m venv .venv')
                     ejecutar("${python()} -m pip install --upgrade pip")
                     ejecutar("${python()} -m pip install -r requirements.txt")
